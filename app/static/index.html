@@ -1,0 +1,840 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>算法 RAG 控制台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-1: #f9f4ec;
+      --bg-2: #dff0e8;
+      --panel: rgba(255, 255, 255, 0.75);
+      --ink: #182320;
+      --ink-soft: #52615d;
+      --accent: #e96e4f;
+      --accent-2: #1f7a66;
+      --line: rgba(24, 35, 32, 0.14);
+      --shadow: 0 16px 40px rgba(23, 42, 34, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: 'Noto Sans SC', sans-serif;
+      background:
+        radial-gradient(1200px 700px at 90% -10%, #ffd5b5 0%, transparent 60%),
+        radial-gradient(1000px 700px at -20% 100%, #bae8d8 0%, transparent 65%),
+        linear-gradient(140deg, var(--bg-1), var(--bg-2));
+      background-attachment: fixed;
+    }
+
+    .wrap {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 24px 16px 32px;
+      animation: enter 500ms ease;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero {
+      margin-bottom: 18px;
+      border-radius: calc(var(--radius) + 6px);
+      padding: 20px;
+      background: linear-gradient(130deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.58));
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(6px);
+    }
+
+    .guide {
+      margin-bottom: 18px;
+      border-radius: var(--radius);
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .guide ol {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      color: #33433e;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .guide p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(26px, 4vw, 38px);
+      letter-spacing: 0.01em;
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 960px) {
+      .grid {
+        grid-template-columns: 350px 1fr;
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      backdrop-filter: blur(6px);
+    }
+
+    .title {
+      margin: 0 0 14px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input, textarea, button {
+      font: inherit;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(31, 122, 102, 0.14);
+    }
+
+    .switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.65; cursor: wait; transform: none; }
+
+    .primary { background: var(--accent); color: #fff; }
+    .secondary { background: var(--accent-2); color: #fff; }
+
+    .status {
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+      color: var(--ink-soft);
+    }
+
+    .answer {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      font-size: 15px;
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--line);
+      min-height: 120px;
+    }
+
+    .refs {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .ref {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .ref-head {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .ref-body {
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #33433e;
+      max-height: 140px;
+      overflow: auto;
+    }
+
+    .eval-box {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .eval-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .eval-table th, .eval-table td {
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: center;
+    }
+
+    .eval-table th {
+      background: rgba(31, 122, 102, 0.12);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>算法 RAG 控制台</h1>
+      <p class="sub">本地检索 + DeepSeek 生成答案。先构建知识库，再提问。</p>
+    </section>
+
+    <section class="guide">
+      <h2 class="title">详细操作流程</h2>
+      <ol>
+        <li>先确认 `.env` 里已配置好 `DEEPSEEK_API_KEY` 和 MySQL 连接（库名一般是 `tutor`）。</li>
+        <li>点击左侧“构建知识库”，建议首次可把“构建数量上限”设为 `100`~`300` 进行测试。</li>
+        <li>构建完成后，在“问题输入”里输入算法问题，例如“快速排序的时间复杂度是多少？”。</li>
+        <li>按需勾选“启用工具增强”“更新会话记忆”，点击“提交问题”查看答案和引用片段。</li>
+        <li>想看效果对比时，填写评测参数后点击“运行评测”，查看三种方法的指标表格。</li>
+        <li>若结果不理想：先提高 `Top K`，再扩大构建数量，最后开启合成问答重新构建。</li>
+      </ol>
+      <p>提示：每次重建会刷新当前知识库内容，建议先小样本验证，再全量构建。</p>
+    </section>
+
+    <main class="grid">
+      <section class="card">
+        <h2 class="title">构建与问答</h2>
+
+        <div class="row">
+          <label for="limit">构建数量上限</label>
+          <input id="limit" type="number" min="1" placeholder="例如 100（留空表示全部）" />
+        </div>
+
+        <label class="switch" for="withSynth">
+          <input id="withSynth" type="checkbox" checked />
+          构建时启用 DeepSeek 合成问答
+        </label>
+
+        <div class="btns">
+          <button class="primary" id="buildBtn">构建知识库</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0;" />
+
+        <div class="row">
+          <label for="question">问题输入</label>
+          <textarea id="question" placeholder="例如：KMP 的 next 数组怎么求？"></textarea>
+        </div>
+
+        <div class="row">
+          <label for="currentState">当前状态 S（可选）</label>
+          <textarea id="currentState" placeholder="例如：当前页面停留在 KMP 章节，用户正在看 next 数组推导"></textarea>
+        </div>
+
+        <div class="row">
+          <label for="topK">检索 Top K</label>
+          <input id="topK" type="number" min="1" value="5" />
+        </div>
+
+        <div class="row">
+          <label for="algorithmId">算法 ID（可选）</label>
+          <input id="algorithmId" type="number" min="1" placeholder="例如 10" />
+        </div>
+
+        <div class="row">
+          <label for="retrievalMode">检索模式</label>
+          <select id="retrievalMode">
+            <option value="hybrid" selected>Hybrid（推荐）</option>
+            <option value="vector">Vector</option>
+            <option value="tfidf">TF-IDF</option>
+            <option value="keyword">Keyword</option>
+          </select>
+        </div>
+
+        <label class="switch" for="enableTools">
+          <input id="enableTools" type="checkbox" checked />
+          提问时启用工具增强（复杂度/知识图谱）
+        </label>
+
+        <label class="switch" for="enablePlanning">
+          <input id="enablePlanning" type="checkbox" checked />
+          提问时先进行规划
+        </label>
+
+        <label class="switch" for="enableMcp">
+          <input id="enableMcp" type="checkbox" checked />
+          工具通过 MCP 调用
+        </label>
+
+        <label class="switch" for="enableMemory">
+          <input id="enableMemory" type="checkbox" checked />
+          提问后更新会话记忆
+        </label>
+
+        <div class="btns">
+          <button class="secondary" id="statsBtn">查看统计</button>
+          <button class="secondary" id="memoryBtn">查看记忆图</button>
+          <button class="primary" id="searchBtn">仅检索</button>
+          <button class="secondary" id="askBtn">提交问题</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0;" />
+
+        <div class="row">
+          <label for="evalLimit">评测样本数</label>
+          <input id="evalLimit" type="number" min="1" value="8" />
+        </div>
+
+        <div class="row">
+          <label for="evalTopK">评测 Top K</label>
+          <input id="evalTopK" type="number" min="1" value="5" />
+        </div>
+
+        <div class="row">
+          <label for="evalAlgorithmId">评测算法 ID（可选）</label>
+          <input id="evalAlgorithmId" type="number" min="1" placeholder="例如 10" />
+        </div>
+
+        <div class="row">
+          <label for="evalRetrievalMode">评测检索模式</label>
+          <select id="evalRetrievalMode">
+            <option value="hybrid" selected>Hybrid（推荐）</option>
+            <option value="vector">Vector</option>
+            <option value="tfidf">TF-IDF</option>
+            <option value="keyword">Keyword</option>
+          </select>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="evalBtn">运行评测</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0;" />
+
+        <div class="row">
+          <label for="expLimit">实验样本数</label>
+          <input id="expLimit" type="number" min="1" value="6" />
+        </div>
+
+        <div class="row">
+          <label for="expTopKs">实验 Top K 列表</label>
+          <input id="expTopKs" type="text" value="3,5,8" />
+        </div>
+
+        <div class="row">
+          <label for="expModes">实验检索模式列表</label>
+          <input id="expModes" type="text" value="tfidf,keyword,vector,hybrid" />
+        </div>
+
+        <div class="btns">
+          <button class="secondary" id="expBtn">运行实验</button>
+          <button class="primary" id="synthBtn">运行合成</button>
+        </div>
+
+        <p class="status" id="status"></p>
+      </section>
+
+      <section class="card">
+        <h2 class="title">回答结果</h2>
+        <div class="answer" id="answer">等待你的提问...</div>
+        <div class="eval-box">
+          <h3 class="title" style="margin:0 0 8px;">规划结果</h3>
+          <div class="answer" id="planResult" style="min-height:80px;">等待规划执行...</div>
+        </div>
+        <div class="refs" id="refs"></div>
+
+        <div class="eval-box">
+          <h3 class="title" style="margin:0 0 8px;">评测结果</h3>
+          <div id="evalSummary" class="status" style="margin-top:0;">点击“运行评测”后显示结果</div>
+          <table class="eval-table" id="evalTable">
+            <thead>
+              <tr>
+                <th>方法</th>
+                <th>ROUGE-1</th>
+                <th>ROUGE-2</th>
+                <th>ROUGE-L</th>
+                <th>BLEU-4</th>
+              </tr>
+            </thead>
+            <tbody id="evalTbody">
+              <tr><td colspan="5">暂无评测结果</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="eval-box">
+          <h3 class="title" style="margin:0 0 8px;">实验结果</h3>
+          <div id="expSummary" class="status" style="margin-top:0;">点击“运行实验”后显示最佳配置</div>
+          <div class="answer" id="expResult" style="min-height:80px;">等待实验运行...</div>
+        </div>
+
+        <div class="eval-box">
+          <h3 class="title" style="margin:0 0 8px;">统计 / 记忆 / 合成</h3>
+          <div class="answer" id="auxResult" style="min-height:80px;">等待操作...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const answerEl = document.getElementById('answer');
+    const refsEl = document.getElementById('refs');
+    const planResultEl = document.getElementById('planResult');
+    const evalSummaryEl = document.getElementById('evalSummary');
+    const evalTbodyEl = document.getElementById('evalTbody');
+    const expSummaryEl = document.getElementById('expSummary');
+    const expResultEl = document.getElementById('expResult');
+    const auxResultEl = document.getElementById('auxResult');
+    const buildBtn = document.getElementById('buildBtn');
+    const statsBtn = document.getElementById('statsBtn');
+    const memoryBtn = document.getElementById('memoryBtn');
+    const searchBtn = document.getElementById('searchBtn');
+    const askBtn = document.getElementById('askBtn');
+    const evalBtn = document.getElementById('evalBtn');
+    const expBtn = document.getElementById('expBtn');
+    const synthBtn = document.getElementById('synthBtn');
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? '#c23333' : '';
+    }
+
+    function renderRefs(refs) {
+      refsEl.innerHTML = '';
+      if (!Array.isArray(refs) || refs.length === 0) {
+        return;
+      }
+
+      refs.forEach((ref) => {
+        const item = document.createElement('div');
+        item.className = 'ref';
+
+        const head = document.createElement('div');
+        head.className = 'ref-head';
+        const scoreMeta = ref.retrieval_scores
+          ? ` | tfidf=${ref.retrieval_scores.tfidf} keyword=${ref.retrieval_scores.keyword} vector=${ref.retrieval_scores.vector}`
+          : '';
+        head.textContent = `片段ID=${ref.id} | 算法ID=${ref.algorithm_id} | 类型=${ref.chunk_type} | 模式=${ref.retrieval_mode || '-'} | 分数=${ref.score}${scoreMeta}`;
+
+        const body = document.createElement('div');
+        body.className = 'ref-body';
+        body.textContent = ref.content || '';
+
+        item.appendChild(head);
+        item.appendChild(body);
+        refsEl.appendChild(item);
+      });
+    }
+
+    function renderEval(result) {
+      const summary = result && result.summary ? result.summary : {};
+      const methods = result && result.methods ? result.methods : {};
+      evalSummaryEl.textContent = `总样本=${summary.total || 0}，成功=${summary.done || 0}，失败=${summary.failed || 0}，检索模式=${summary.retrieval_mode || '-'}`;
+
+      const rows = Object.entries(methods);
+      if (rows.length === 0) {
+        evalTbodyEl.innerHTML = '<tr><td colspan=\"5\">暂无评测结果</td></tr>';
+        return;
+      }
+
+      evalTbodyEl.innerHTML = '';
+      rows.forEach(([name, score]) => {
+        const nameMap = {
+          baseline_extractive: '基线抽取法',
+          rag_basic: '基础 RAG',
+          rag_plus: '增强 RAG',
+        };
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${nameMap[name] || name}</td>
+          <td>${Number(score.rouge_1 || 0).toFixed(4)}</td>
+          <td>${Number(score.rouge_2 || 0).toFixed(4)}</td>
+          <td>${Number(score.rouge_l || 0).toFixed(4)}</td>
+          <td>${Number(score.bleu_4 || 0).toFixed(4)}</td>
+        `;
+        evalTbodyEl.appendChild(tr);
+      });
+    }
+
+    function renderExperiment(result) {
+      const best = result && result.best ? result.best : null;
+      const artifacts = result && result.artifacts ? result.artifacts : {};
+      if (!best) {
+        expSummaryEl.textContent = '暂无实验结果';
+        expResultEl.textContent = '没有可展示的实验输出。';
+        return;
+      }
+
+      expSummaryEl.textContent = `最佳模式=${best.retrieval_mode} | top_k=${best.top_k}`;
+      expResultEl.textContent = [
+        `rag_plus.rouge_l = ${Number(best.methods?.rag_plus?.rouge_l || 0).toFixed(4)}`,
+        `rag_plus.bleu_4 = ${Number(best.methods?.rag_plus?.bleu_4 || 0).toFixed(4)}`,
+        `summary = ${JSON.stringify(best.summary || {}, null, 2)}`,
+        `json = ${artifacts.json || '-'}`,
+        `markdown = ${artifacts.markdown || '-'}`,
+      ].join('\n');
+    }
+
+    function parseCsvNumbers(value) {
+      return value
+        .split(',')
+        .map((x) => Number(x.trim()))
+        .filter((x) => Number.isFinite(x) && x > 0);
+    }
+
+    function parseCsvStrings(value) {
+      return value
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+    }
+
+    async function postJson(url, payload) {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      let data;
+      try {
+        data = await resp.json();
+      } catch {
+        throw new Error('服务返回了非 JSON 响应');
+      }
+
+      if (!resp.ok) {
+        throw new Error(data.detail || data.message || `请求失败(${resp.status})`);
+      }
+      return data;
+    }
+
+    async function getJson(url) {
+      const resp = await fetch(url);
+      let data;
+      try {
+        data = await resp.json();
+      } catch {
+        throw new Error('服务返回了非 JSON 响应');
+      }
+      if (!resp.ok) {
+        throw new Error(data.detail || data.message || `请求失败(${resp.status})`);
+      }
+      return data;
+    }
+
+    buildBtn.addEventListener('click', async () => {
+      buildBtn.disabled = true;
+      setStatus('正在构建知识库...');
+      try {
+        const limitRaw = document.getElementById('limit').value.trim();
+        const withSynth = document.getElementById('withSynth').checked;
+
+        const payload = {
+          with_synth: withSynth,
+          limit: limitRaw ? Number(limitRaw) : null,
+        };
+
+        const data = await postJson('/build', payload);
+        const info = data && data.data ? data.data : {};
+        setStatus(`构建完成：algorithms=${info.algorithms || 0}, chunks=${info.chunks || 0}`);
+      } catch (err) {
+        setStatus(`构建失败：${err.message}`, true);
+      } finally {
+        buildBtn.disabled = false;
+      }
+    });
+
+    statsBtn.addEventListener('click', async () => {
+      statsBtn.disabled = true;
+      setStatus('正在读取系统统计...');
+      try {
+        const data = await getJson('/stats');
+        auxResultEl.textContent = JSON.stringify((data && data.data) || {}, null, 2);
+        setStatus('统计读取完成');
+      } catch (err) {
+        setStatus(`统计读取失败：${err.message}`, true);
+      } finally {
+        statsBtn.disabled = false;
+      }
+    });
+
+    memoryBtn.addEventListener('click', async () => {
+      memoryBtn.disabled = true;
+      setStatus('正在检索结构化记忆...');
+      try {
+        const question = document.getElementById('question').value.trim();
+        const algorithmIdRaw = document.getElementById('algorithmId').value.trim();
+        const topK = Number(document.getElementById('topK').value || 5);
+        if (!question) {
+          throw new Error('请先输入问题');
+        }
+        const data = await postJson('/memory_graph', {
+          question,
+          algorithm_id: algorithmIdRaw ? Number(algorithmIdRaw) : null,
+          top_k: topK > 0 ? topK : 6,
+        });
+        auxResultEl.textContent = JSON.stringify((data && data.data) || {}, null, 2);
+        setStatus('结构化记忆检索完成');
+      } catch (err) {
+        setStatus(`记忆图检索失败：${err.message}`, true);
+      } finally {
+        memoryBtn.disabled = false;
+      }
+    });
+
+    searchBtn.addEventListener('click', async () => {
+      searchBtn.disabled = true;
+      setStatus('正在执行仅检索...');
+      try {
+        const question = document.getElementById('question').value.trim();
+        const currentState = document.getElementById('currentState').value.trim();
+        const topK = Number(document.getElementById('topK').value || 5);
+        const algorithmIdRaw = document.getElementById('algorithmId').value.trim();
+        const retrievalMode = document.getElementById('retrievalMode').value;
+        const enableMemory = document.getElementById('enableMemory').checked;
+
+        if (!question) {
+          throw new Error('请先输入问题');
+        }
+
+        const payload = {
+          question,
+          top_k: topK > 0 ? topK : 5,
+          algorithm_id: algorithmIdRaw ? Number(algorithmIdRaw) : null,
+          retrieval_mode: retrievalMode,
+          use_expansion: true,
+          include_memory: enableMemory,
+        };
+
+        const data = await postJson('/search', payload);
+        const body = data && data.data ? data.data : {};
+
+        answerEl.textContent = `仅检索模式：${body.retrieval_mode || retrievalMode}\n命中片段数：${body.count || 0}`;
+        renderRefs(body.results || []);
+        setStatus('仅检索完成');
+      } catch (err) {
+        answerEl.textContent = '请求失败，请查看错误信息。';
+        renderRefs([]);
+        setStatus(`仅检索失败：${err.message}`, true);
+      } finally {
+        searchBtn.disabled = false;
+      }
+    });
+
+      askBtn.addEventListener('click', async () => {
+        askBtn.disabled = true;
+        setStatus('正在检索并生成答案...');
+        try {
+          const question = document.getElementById('question').value.trim();
+          const currentState = document.getElementById('currentState').value.trim();
+          const topK = Number(document.getElementById('topK').value || 5);
+          const algorithmIdRaw = document.getElementById('algorithmId').value.trim();
+          const retrievalMode = document.getElementById('retrievalMode').value;
+          const enableTools = document.getElementById('enableTools').checked;
+          const enablePlanning = document.getElementById('enablePlanning').checked;
+        const enableMcp = document.getElementById('enableMcp').checked;
+        const enableMemory = document.getElementById('enableMemory').checked;
+
+        if (!question) {
+          throw new Error('请先输入问题');
+        }
+
+        const payload = {
+          question,
+          top_k: topK > 0 ? topK : 5,
+          algorithm_id: algorithmIdRaw ? Number(algorithmIdRaw) : null,
+          retrieval_mode: retrievalMode,
+          current_state: currentState,
+          enable_tools: enableTools,
+          enable_planning: enablePlanning,
+          enable_mcp: enableMcp,
+          enable_memory: enableMemory,
+        };
+
+        const data = await postJson('/ask', payload);
+        const body = data && data.data ? data.data : {};
+
+        answerEl.textContent = body.answer || '(无答案)';
+        planResultEl.textContent = JSON.stringify(
+          {
+            answer_mode: body.answer_mode,
+            plan: body.plan,
+            execution_trace: body.execution_trace,
+            mixed_knowledge: body.mixed_knowledge,
+          },
+          null,
+          2
+        );
+        renderRefs(body.references || []);
+        setStatus('回答完成');
+      } catch (err) {
+        answerEl.textContent = '请求失败，请查看错误信息。';
+        planResultEl.textContent = '请求失败，未生成规划结果。';
+        renderRefs([]);
+        setStatus(`提问失败：${err.message}`, true);
+      } finally {
+        askBtn.disabled = false;
+      }
+    });
+
+    evalBtn.addEventListener('click', async () => {
+      evalBtn.disabled = true;
+      setStatus('正在运行评测，请稍候...');
+      try {
+        const evalLimit = Number(document.getElementById('evalLimit').value || 8);
+        const evalTopK = Number(document.getElementById('evalTopK').value || 5);
+        const evalAlgorithmIdRaw = document.getElementById('evalAlgorithmId').value.trim();
+        const evalRetrievalMode = document.getElementById('evalRetrievalMode').value;
+
+        const payload = {
+          limit: evalLimit > 0 ? evalLimit : 8,
+          top_k: evalTopK > 0 ? evalTopK : 5,
+          algorithm_id: evalAlgorithmIdRaw ? Number(evalAlgorithmIdRaw) : null,
+          retrieval_mode: evalRetrievalMode,
+        };
+
+        const data = await postJson('/evaluate', payload);
+        const body = data && data.data ? data.data : {};
+        renderEval(body);
+        setStatus('评测完成');
+      } catch (err) {
+        setStatus(`评测失败：${err.message}`, true);
+      } finally {
+        evalBtn.disabled = false;
+      }
+    });
+
+    expBtn.addEventListener('click', async () => {
+      expBtn.disabled = true;
+      setStatus('正在运行实验，请稍候...');
+      try {
+        const expLimit = Number(document.getElementById('expLimit').value || 6);
+        const expTopKs = parseCsvNumbers(document.getElementById('expTopKs').value || '3,5,8');
+        const expModes = parseCsvStrings(document.getElementById('expModes').value || 'tfidf,keyword,vector,hybrid');
+        const evalAlgorithmIdRaw = document.getElementById('evalAlgorithmId').value.trim();
+
+        const payload = {
+          limit: expLimit > 0 ? expLimit : 6,
+          algorithm_id: evalAlgorithmIdRaw ? Number(evalAlgorithmIdRaw) : null,
+          top_k_values: expTopKs.length ? expTopKs : [3, 5, 8],
+          retrieval_modes: expModes.length ? expModes : ['tfidf', 'keyword', 'vector', 'hybrid'],
+        };
+
+        const data = await postJson('/experiment', payload);
+        const body = data && data.data ? data.data : {};
+        renderExperiment(body);
+        setStatus('实验完成');
+      } catch (err) {
+        setStatus(`实验失败：${err.message}`, true);
+      } finally {
+        expBtn.disabled = false;
+      }
+    });
+
+    synthBtn.addEventListener('click', async () => {
+      synthBtn.disabled = true;
+      setStatus('正在运行数据合成...');
+      try {
+        const expLimit = Number(document.getElementById('expLimit').value || 6);
+        const evalAlgorithmIdRaw = document.getElementById('evalAlgorithmId').value.trim();
+        const data = await postJson('/synthesize', {
+          limit: expLimit > 0 ? expLimit : 6,
+          algorithm_id: evalAlgorithmIdRaw ? Number(evalAlgorithmIdRaw) : null,
+        });
+        auxResultEl.textContent = JSON.stringify((data && data.data) || {}, null, 2);
+        setStatus('数据合成完成');
+      } catch (err) {
+        setStatus(`数据合成失败：${err.message}`, true);
+      } finally {
+        synthBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
