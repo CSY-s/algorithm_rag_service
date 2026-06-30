@@ -96,6 +96,38 @@ def fetch_algorithms(limit: int | None = None) -> list[dict]:
         conn.close()
 
 
+def fetch_algorithm_by_id(algorithm_id: int) -> dict | None:
+    """根据算法ID获取算法信息
+    
+    参数:
+        algorithm_id: 算法ID
+    
+    返回:
+        算法信息字典，如果不存在返回None
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                '''SELECT id, name, code 
+                   FROM algorithm_algorithm 
+                   WHERE id=%s AND is_del=0 
+                   LIMIT 1''',
+                (int(algorithm_id),)
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            
+            return {
+                'algorithm_id': int(row['id']),
+                'algorithm_name': (row.get('name') or '').strip(),
+                'code': (row.get('code') or '').strip(),
+            }
+    finally:
+        conn.close()
+
+
 def search_knowledge_nodes(query: str, limit: int = 6) -> list[dict]:
     """按关键词模糊搜索知识图谱节点。"""
     query = (query or '').strip()
@@ -197,5 +229,71 @@ def fetch_eval_samples(limit: int = 12, algorithm_id: int | None = None) -> list
                     }
                 )
             return out
+    finally:
+        conn.close()
+
+
+
+def fetch_all_knowledge_nodes(limit: int | None = None) -> list[dict]:
+    """获取所有知识图谱节点
+    
+    参数:
+        limit: 限制返回数量
+    
+    返回:
+        节点列表
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            sql = 'SELECT id, name, COALESCE(type, "") AS type, COALESCE(description, "") AS description FROM knowledge_node ORDER BY id'
+            if limit:
+                sql += f' LIMIT {int(limit)}'
+            cur.execute(sql)
+            rows = cur.fetchall()
+            for r in rows:
+                r['description'] = _clean_text(r.get('description') or '')[:240]
+            return rows
+    finally:
+        conn.close()
+
+
+def fetch_all_knowledge_relations(node_ids: list[int] | None = None) -> list[dict]:
+    """获取所有知识图谱关系（可选过滤节点）
+    
+    参数:
+        node_ids: 可选，只返回这些节点相关的关系
+    
+    返回:
+        关系列表
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            if node_ids:
+                placeholders = ','.join(['%s'] * len(node_ids))
+                sql = f'''
+                SELECT r.id, r.source_id, s.name AS source_name,
+                       r.relation_type,
+                       r.target_id, t.name AS target_name
+                FROM knowledge_relation r
+                JOIN knowledge_node s ON s.id = r.source_id
+                JOIN knowledge_node t ON t.id = r.target_id
+                WHERE r.source_id IN ({placeholders}) OR r.target_id IN ({placeholders})
+                ORDER BY r.id
+                '''
+                cur.execute(sql, tuple(node_ids + node_ids))
+            else:
+                sql = '''
+                SELECT r.id, r.source_id, s.name AS source_name,
+                       r.relation_type,
+                       r.target_id, t.name AS target_name
+                FROM knowledge_relation r
+                JOIN knowledge_node s ON s.id = r.source_id
+                JOIN knowledge_node t ON t.id = r.target_id
+                ORDER BY r.id
+                '''
+                cur.execute(sql)
+            return cur.fetchall()
     finally:
         conn.close()

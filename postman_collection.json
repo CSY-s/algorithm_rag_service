@@ -1,0 +1,211 @@
+{
+  "info": {
+    "name": "Algorithm RAG Service - 网站集成API",
+    "description": "测试上下文感知RAG和会话管理功能",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. 上下文感知问答",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"这个算法的时间复杂度是多少?\",\n  \"algorithm_id\": 10,\n  \"session_id\": \"test_session_001\",\n  \"user_id\": 123,\n  \"top_k\": 5,\n  \"retrieval_mode\": \"hybrid\",\n  \"enable_tools\": true,\n  \"enable_memory\": true\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/rag/context_ask",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "context_ask"]
+        },
+        "description": "测试算法范围限定和指代消解功能"
+      }
+    },
+    {
+      "name": "2. 连续对话（第1轮）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"快速排序的基本思想是什么?\",\n  \"algorithm_id\": 10,\n  \"session_id\": \"test_continuous_chat\",\n  \"user_id\": 123\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/rag/context_ask",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "context_ask"]
+        },
+        "description": "第1轮对话：询问基本概念"
+      }
+    },
+    {
+      "name": "3. 连续对话（第2轮-使用指代）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"它的空间复杂度呢?\",\n  \"algorithm_id\": 10,\n  \"session_id\": \"test_continuous_chat\",\n  \"user_id\": 123\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/rag/context_ask",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "context_ask"]
+        },
+        "description": "第2轮对话：使用指代词\"它\"，系统应自动消解为\"快速排序\""
+      }
+    },
+    {
+      "name": "4. 获取会话历史",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/rag/session/test_continuous_chat?limit=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "session", "test_continuous_chat"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "返回最近10条记录"
+            }
+          ]
+        },
+        "description": "获取会话历史记录"
+      }
+    },
+    {
+      "name": "5. 获取会话摘要",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/rag/session/test_continuous_chat/summary",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "session", "test_continuous_chat", "summary"]
+        },
+        "description": "获取会话摘要信息（总消息数、讨论的算法、时间等）"
+      }
+    },
+    {
+      "name": "6. 不限定算法范围（全局检索）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"排序算法有哪些?\",\n  \"session_id\": \"test_global_search\",\n  \"user_id\": 123\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/rag/context_ask",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "context_ask"]
+        },
+        "description": "不提供algorithm_id，进行全局检索"
+      }
+    },
+    {
+      "name": "7. 对比测试（有algorithm_id vs 无）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"时间复杂度是多少?\",\n  \"session_id\": \"test_comparison\",\n  \"user_id\": 123\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/rag/context_ask",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "context_ask"]
+        },
+        "description": "与请求1对比：相同问题，无algorithm_id会得到不同结果"
+      }
+    },
+    {
+      "name": "8. 清空会话",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/rag/session/test_continuous_chat",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "session", "test_continuous_chat"]
+        },
+        "description": "清空会话历史（用于\"新对话\"功能）"
+      }
+    },
+    {
+      "name": "9. 健康检查",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["health"]
+        },
+        "description": "检查服务是否正常运行"
+      }
+    },
+    {
+      "name": "10. 查看系统统计",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/stats",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["stats"]
+        },
+        "description": "查看知识库统计信息"
+      }
+    }
+  ]
+}

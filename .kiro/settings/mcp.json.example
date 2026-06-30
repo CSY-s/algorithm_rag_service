@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "algorithm-teaching": {
+      "command": "python",
+      "args": [
+        "G:/zhuomian/algorithm_rag_service/algorithm_mcp_server/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "G:/zhuomian/algorithm_rag_service"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "search_algorithm",
+        "get_algorithm_code",
+        "list_algorithms"
+      ]
+    }
+  }
+}

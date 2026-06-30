@@ -5,13 +5,15 @@
 
 import hashlib
 import json
+import re
 from typing import Optional
 
-from .db_source import fetch_algorithms
+from .db_source import fetch_algorithms, fetch_algorithm_by_id
 from .deepseek import deepseek_chat, expand_questions, extract_triples, synthesize_qa
 from .hybrid_retrieval import retrieve_rows
 from .store import get_chunks, insert_chunks, memory_hash_exists, reset_store
 from .tools import build_tool_chunks
+from .session import save_session_history, get_last_algorithm
 
 
 def _guess_step(name: str, code: str) -> str:
@@ -159,48 +161,155 @@ def _save_memory(question: str, answer: str, algorithm_id: int | None = None):
     )
 
 
+def _resolve_references(
+    question: str, 
+    algorithm_id: Optional[int],
+    session_id: Optional[str]
+) -> str:
+    """消解指代词（"它"、"这个算法"等）
+    
+    示例:
+        输入: "它的时间复杂度是多少?"
+        上下文: algorithm_id=10 (快速排序)
+        输出: "快速排序的时间复杂度是多少?"
+    
+    参数:
+        question: 原始问题
+        algorithm_id: 当前算法ID
+        session_id: 会话ID
+    
+    返回:
+        消解后的问题
+    """
+    # 如果没有algorithm_id，尝试从会话历史获取
+    if not algorithm_id and session_id:
+        algorithm_id = get_last_algorithm(session_id)
+    
+    if not algorithm_id:
+        return question
+    
+    # 获取算法名称
+    algo = fetch_algorithm_by_id(algorithm_id)
+    if not algo:
+        return question
+    
+    algo_name = algo['algorithm_name']
+    
+    # 替换指代词
+    resolved = question
+    
+    # 替换常见指代词
+    patterns = [
+        (r'(?<![a-zA-Z])它(?![a-zA-Z])', algo_name),
+        (r'这个算法', algo_name),
+        (r'该算法', algo_name),
+        (r'这种算法', algo_name),
+        (r'上面的算法', algo_name),
+        (r'当前算法', algo_name),
+    ]
+    
+    for pattern, replacement in patterns:
+        resolved = re.sub(pattern, replacement, resolved)
+    
+    return resolved
+
+
 def rag_ask(
     question: str,
     top_k: int = 5,
     algorithm_id: int | None = None,
+    session_id: str | None = None,
     retrieval_mode: str = 'hybrid',
     enable_tools: bool = True,
     enable_memory: bool = True,
+    user_id: int | None = None,
 ) -> dict:
-    """基础版 RAG 问答流程。"""
+    """上下文感知的RAG问答流程
+    
+    参数:
+        question: 用户问题
+        top_k: 检索chunk数量
+        algorithm_id: 限定算法范围（提供则只在该算法chunks中检索）
+        session_id: 会话ID（用于追踪对话历史）
+        retrieval_mode: 检索模式
+        enable_tools: 是否启用工具增强
+        enable_memory: 是否启用记忆机制
+        user_id: 用户ID（可选，用于统计）
+    
+    返回:
+        {
+            'answer': 生成的答案,
+            'references': 引用的chunk列表,
+            'retrieval_mode': 使用的检索模式,
+            'resolved_question': 消解后的问题（如果有指代消解）
+        }
+    """
+    # 1. 处理指代消解
+    resolved_question = _resolve_references(
+        question, 
+        algorithm_id=algorithm_id,
+        session_id=session_id
+    )
+    
+    # 2. 检索（限定algorithm_id范围）
     refs = retrieve(
-        question,
+        resolved_question,
         top_k=top_k,
         algorithm_id=algorithm_id,
         mode=retrieval_mode,
         use_expansion=True,
         include_memory=enable_memory,
     )
+    
     if not refs:
-        return {'answer': '暂无语料，请先调用/build构建。', 'references': []}
+        return {
+            'answer': '暂无语料，请先调用/build构建。', 
+            'references': [],
+            'resolved_question': resolved_question
+        }
 
+    # 3. 工具增强
     tool_refs = build_tool_chunks(question, refs, algorithm_id=algorithm_id) if enable_tools else []
     final_refs = refs + tool_refs
 
+    # 4. 构建上下文
     context = []
     for r in final_refs:
         context.append(
             f"[chunk_id={r.get('id')};algorithm_id={r.get('algorithm_id')};type={r.get('chunk_type')};source={r.get('source')}]\n{r.get('content')}"
         )
 
+    # 5. LLM生成答案
     ans = deepseek_chat(
         [
             {
                 'role': 'system',
                 'content': '你是算法助教。优先依据检索片段回答，并在关键句后标注[chunk_id=xx]；若依据工具结果，请标注对应chunk_id。',
             },
-            {'role': 'user', 'content': f"问题：{question}\n\n检索片段：\n\n" + '\n\n'.join(context)},
+            {'role': 'user', 'content': f"问题：{resolved_question}\n\n检索片段：\n\n" + '\n\n'.join(context)},
         ],
         temperature=0.2,
         max_tokens=1600,
     )
 
+    # 6. 保存记忆
     if enable_memory:
-        _save_memory(question, ans, algorithm_id=algorithm_id)
+        _save_memory(resolved_question, ans, algorithm_id=algorithm_id)
+    
+    # 7. 保存会话历史
+    if session_id:
+        save_session_history(
+            session_id=session_id,
+            user_id=user_id,
+            algorithm_id=algorithm_id or 0,
+            question=question,
+            answer=ans,
+            references=final_refs
+        )
 
-    return {'answer': ans, 'references': final_refs, 'retrieval_mode': retrieval_mode}
+    return {
+        'answer': ans, 
+        'references': final_refs, 
+        'retrieval_mode': retrieval_mode,
+        'resolved_question': resolved_question if resolved_question != question else None
+    }
